@@ -157,6 +157,7 @@ class SpeechRequest(BaseModel):
     model: Optional[str] = 'emoti-voice'
     response_format: Optional[str] = 'mp3'
     speed: Optional[float] = 1.0
+    volume: Optional[int] = 0
 
 
 @app.post("/v1/audio/speech")
@@ -172,13 +173,16 @@ def text_to_speech(speechRequest: SpeechRequest):
     wav_buffer = io.BytesIO()
     sf.write(file=wav_buffer, data=y_stretch,
              samplerate=config.sampling_rate, format='WAV')
-    buffer = wav_buffer
+    
+    wav_audio = AudioSegment.from_wav(wav_buffer)
+    wav_audio.frame_rate=config.sampling_rate
+    # Adjust the volume
+    volume_value = speechRequest.volume
+    wav_audio = wav_audio + volume_value
+    
     response_format = speechRequest.response_format
-    if response_format != 'wav':
-        wav_audio = AudioSegment.from_wav(wav_buffer)
-        wav_audio.frame_rate=config.sampling_rate
-        buffer = io.BytesIO()
-        wav_audio.export(buffer, format=response_format)
+    buffer = io.BytesIO()
+    wav_audio.export(buffer, format=response_format)
 
     return Response(content=buffer.getvalue(),
                     media_type=f"audio/{response_format}")
